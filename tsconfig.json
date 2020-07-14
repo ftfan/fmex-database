@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES5",
+    "module": "CommonJS",
+    "strict": true,
+    "sourceMap": true,
+    "importHelpers": true,
+    "moduleResolution": "Node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "allowSyntheticDefaultImports": true,
+    // "baseUrl": ".",
+    "lib": ["es2015", "dom", "dom.iterable", "scripthost"],
+    "types": ["node"],
+    "outDir": "./dist"
+  },
+  "exclude": ["node_module", "dist"],
+  "include": ["**/*.ts", "pm2.config.js"]
+}

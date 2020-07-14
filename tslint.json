@@ -1,0 +1,33 @@
+{
+  "rules": {
+    "no-unused-variable": false,
+    "await-promise": false,
+    "no-use-before-declare": false,
+    "return-undefined": false,
+    "no-unnecessary-qualifier": false,
+    "no-unnecessary-type-assertion": false,
+    "strict-type-predicates": false,
+    "whitespace": false,
+    "semicolon": false,
+    "space-before-function-paren": [
+      true,
+      {
+        "anonymous": "ignore",
+        "named": "ignore",
+        "asyncArrow": "ignore"
+      }
+    ],
+    "trailing-comma": [
+      true,
+      {
+        "singleline": "never",
+        "multiline": {
+          "objects": "ignore",
+          "arrays": "ignore",
+          "functions": "ignore",
+          "typeLiterals": "ignore"
+        }
+      }
+    ]
+  }
+}
