@@ -10,8 +10,14 @@ export const AppConfig = {
 };
 
 try {
-  const UserConf = require('./my.config.js');
+  // dist 后在根目录找
+  const UserConf = require('../my.config.js');
   Object.assign(AppConfig, UserConf);
 } catch (e) {
-  //
+  try {
+    const UserConf = require('./my.config.js');
+    Object.assign(AppConfig, UserConf);
+  } catch (e) {
+    //
+  }
 }

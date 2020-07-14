@@ -10,7 +10,7 @@ module.exports = {
     {
       name: 'fmex-database',
       cwd: __dirname,
-      script: `dist/index.js`,
+      script: `./dist/index.js`,
       max_restarts: 5, // 重启次数
       exec_mode: 'fork',
       instances: 1, // 实例个数
