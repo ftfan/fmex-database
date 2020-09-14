@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+
 export const DateFormat = (time: number | Date, fmt = 'yyyy-MM-dd hh:mm:ss') => {
   // if (typeof time === 'string') time = new Date(time);
   if (typeof time === 'number') time = new Date(time);
@@ -31,3 +33,8 @@ export const DateFormat = (time: number | Date, fmt = 'yyyy-MM-dd hh:mm:ss') => 
 export function sleep(time = 200) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
+
+export const MD5 = (...vals: (number | string)[]) => {
+  const str = vals.join('');
+  return crypto.createHash('md5').update(str).digest('hex');
+};

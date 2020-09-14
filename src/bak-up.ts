@@ -1,7 +1,7 @@
 import { BakUpData, BakUpStep } from '../types/app';
 import axios from 'axios';
 import { OssClient } from '../lib/oss';
-import { DateFormat } from '../lib/utils';
+import { DateFormat, MD5 } from '../lib/utils';
 import { AppConfig } from '../app.config';
 
 const TimeMap = {
@@ -329,15 +329,17 @@ class BakUpHandler {
 
             // 备份数据，避免到时候有追溯历史数据没有。
             // 主要对比某几条数据的id和数据的长度等信息。
-            const last = LastPageDataCache[cacheKey];
-            if (last) {
-              (() => {
-                if (DataContent.length !== last.length) return OssClient.Save(revert.Url, revert.Data, item.OssOptions);
-                const str1 = JSON.stringify(DataContent);
-                const str2 = JSON.stringify(last);
-                if (str1 !== str2) return OssClient.Save(revert.Url, revert.Data, item.OssOptions);
-              })();
-            }
+            (() => {
+              const last = LastPageDataCache[cacheKey];
+              LastPageDataCache[cacheKey] = DataContent;
+              if (!last) return;
+              const str2 = JSON.stringify(last);
+              const hash2 = MD5(str2);
+              const llll = `${item.OssUrl}/${timeStr}.${DateFormat(new Date(), 'yyyy-MM-dd-hh-mm')}.${hash2}.json`;
+              const str1 = JSON.stringify(DataContent);
+              const hash1 = MD5(str1);
+              if (hash1 !== hash2) return OssClient.Save(llll, revert.Data, item.OssOptions);
+            })();
             return Promise.resolve(revert);
           },
         }
