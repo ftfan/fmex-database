@@ -16,6 +16,13 @@ const platformCurrencyUrl = 'https://fmex.com/api/broker/v3/zkp-assets/platform/
 // 每个备份请求都是单线程，避免上一个未结束，就发起新的备份
 const ReqPromiseHandler: any = {};
 
+// 缓存当日的分页请求数据，避免数据重复请求。
+const PageCache24H = {
+  DateStr: '',
+  Data: {} as any,
+};
+const LastPageDataCache: any = {}; // 备份每一份差异性的资产数据，避免遗漏
+
 const timeout = 20000;
 /**
  * 备份基础接口数据
@@ -282,14 +289,31 @@ class BakUpHandler {
 
             const Data = [res.data.data];
 
+            const TodayStr = DateFormat(new Date(), 'yyyy-MM-dd');
+            if (TodayStr !== PageCache24H.DateStr) {
+              PageCache24H.DateStr = TodayStr;
+              PageCache24H.Data = {};
+            }
+
             const GetNextPage = async (id: string, times = 0): Promise<any> => {
               if (times > 5) return null; // 重试次数太多了。
               console.log('GetNextPage', Currency, id);
-              const res = await axios.get(item.OriginUrl, { params: { id }, timeout }).catch((e) => Promise.resolve(e && e.response));
-              if (!res || res.status !== 200 || !res.data || (res.data.status !== 0 && res.data.status !== 'ok')) return GetNextPage(id, ++times);
-              Data.push(res.data.data);
-              console.log('GetNextPage', Currency, id, res.data.data.content.length);
-              if (res.data.data.has_next && res.data.data.next_page_id) return GetNextPage(res.data.data.next_page_id);
+
+              let resData: any;
+
+              // 有缓存数据
+              if (PageCache24H.Data[id]) {
+                resData = PageCache24H.Data[id];
+              } else {
+                const res = await axios.get(item.OriginUrl, { params: { id }, timeout }).catch((e) => Promise.resolve(e && e.response));
+                if (!res || res.status !== 200 || !res.data || (res.data.status !== 0 && res.data.status !== 'ok')) return GetNextPage(id, ++times);
+                resData = res.data.data;
+                PageCache24H.Data[id] = res.data.data;
+              }
+              const resDataa = resData!;
+              Data.push(resDataa);
+              console.log('GetNextPage', Currency, id, resDataa.content.length);
+              if (resDataa.has_next && resDataa.next_page_id) return GetNextPage(resDataa.next_page_id);
               return true;
             };
             if (res.data.data.has_next && res.data.data.next_page_id) {
@@ -301,7 +325,20 @@ class BakUpHandler {
               DataContent.push(...item.content);
             });
             this.OriginCache[cacheKey] = cahceValue;
-            return Promise.resolve({ Url: `${item.OssUrl}/${timeStr}.json`, Data: DataContent });
+            const revert = { Url: `${item.OssUrl}/${timeStr}.json`, Data: DataContent };
+
+            // 备份数据，避免到时候有追溯历史数据没有。
+            // 主要对比某几条数据的id和数据的长度等信息。
+            const last = LastPageDataCache[cacheKey];
+            if (last) {
+              (() => {
+                if (DataContent.length !== last.length) return OssClient.Save(revert.Url, revert.Data, item.OssOptions);
+                const str1 = JSON.stringify(DataContent);
+                const str2 = JSON.stringify(last);
+                if (str1 !== str2) return OssClient.Save(revert.Url, revert.Data, item.OssOptions);
+              })();
+            }
+            return Promise.resolve(revert);
           },
         }
       );
