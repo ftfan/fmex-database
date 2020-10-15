@@ -531,7 +531,13 @@ class BakUpHandler {
       let res = await axios.get(`${AliUrl}${url}`).catch((e) => Promise.resolve(e && e.response));
       if (!res || res.status !== 200) {
         if (times < 5) return GetPageData(time, ++times);
-        res = { data: [] };
+        res = {
+          snapshot_time: time,
+          platform_total_amount: '',
+          user_total_amount: '',
+          assets_rate: '',
+          platform_wallet_assets: [],
+        };
       }
       PageConfig.Version++;
       PageConfig.EndTime = DateFormat(time, 'yyyy-MM-dd');
