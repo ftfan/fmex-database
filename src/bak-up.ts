@@ -527,7 +527,7 @@ class BakUpHandler {
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
       const DateStr = DateFormat(time, 'yyyy/MM/dd');
-      const url = `/fmex/broker/v3/zkp-assets/account/snapshot/${Currency}/${DateStr}.json`;
+      const url = `/fmex/broker/v3/zkp-assets/platform/snapshot/${Currency}/${DateStr}.json`;
       let res = await axios.get(`${AliUrl}${url}`).catch((e) => Promise.resolve(e && e.response));
       if (!res || res.status !== 200) {
         if (times < 5) return GetPageData(time, ++times);
