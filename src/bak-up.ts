@@ -314,7 +314,6 @@ class BakUpHandler {
           this.PlatformCurrencyTime = ''; // 获取失败，下次继续获取
         });
     }
-    return [];
     const revert: BakUpData[] = [];
     // 长度没变的情况下。默认认为资产信息没发生变化。不再重新计算资产
     if (this.PlatformCurrency.length * 2 === this.BakUpDataAssets.length) return this.BakUpDataAssets;
