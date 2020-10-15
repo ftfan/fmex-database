@@ -120,14 +120,16 @@ export const PageDataPush2 = (PageConfig: any, data: any) => {
   line[2] = data.assets_rate;
 
   data.platform_wallet_assets.forEach((item: any, index: number) => {
-    item.label = SysName(item.label);
+    item.address_label = SysName(item.address_label);
     // const amount = parseFloat(item.amount);
 
     let has = PageConfig.Params.filter((p: any) => p.Key === item.address)[0];
     if (!has) {
-      has = { Key: item.address, label: item.label };
+      has = { Key: item.address, address_label: item.address_label };
       PageConfig.Params.push(has);
       line.push(NaN);
+    } else {
+      has.address_label = item.address_label; // 更新标签，避免有变更
     }
     const iii = PageConfig.Params.indexOf(has);
     line[iii] = item.amount;
