@@ -483,7 +483,7 @@ class BakUpHandler {
     };
     const bakVersion = PageConfig.Version;
     await GetPageData(EndTime, 0);
-    if (bakVersion === PageConfig.Version) return; // 没有任何变化
+    if (bakVersion === PageConfig.Version) return console.log(logggg, OssUrl, '版本未发生变化'); // 没有任何变化
     const bol = await OssClient.Save(OssUrl, PageConfig, {
       headers: {
         'Cache-Control': 'max-age=604800000', // 7天
