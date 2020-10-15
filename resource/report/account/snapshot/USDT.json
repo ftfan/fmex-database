@@ -1,0 +1,26 @@
+{
+  "Symbol": "usdt",
+  "Version": 0,
+  "BeginTime": "2020-08-31",
+  "EndTime": "",
+  "DataParse": "parse1",
+  "Params": [
+    { "Key": "Time" },
+    { "Key": "0~100" },
+    { "Key": "100~1k" },
+    { "Key": "1k~1w" },
+    { "Key": "1w+" },
+    { "Key": "总资产" },
+    { "Key": "0~1" },
+    { "Key": "1~100" },
+    { "Key": "100~1k" },
+    { "Key": "1k+" },
+    { "Key": "总人数" },
+    { "Key": "1" },
+    { "Key": "2" },
+    { "Key": "3" },
+    { "Key": "4" },
+    { "Key": "5" }
+  ],
+  "Data": []
+}

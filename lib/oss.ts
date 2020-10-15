@@ -14,6 +14,7 @@ class OssHandler {
 
   async Save(OssUrl: string, data: any, options: OSS.PutObjectOptions) {
     try {
+      console.log('---put', OssUrl);
       const res = await this.Handler.put(OssUrl, Buffer.from(JSON.stringify(data)), options);
       return res;
     } catch (e) {
