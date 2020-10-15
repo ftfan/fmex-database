@@ -89,10 +89,10 @@ export const PageDataPush = (PageConfig: any, data: any) => {
     // 如果该资产有标签，需要对标签进行添加
     if (item.label) {
       let has = PageConfig.Params.filter((p: any) => p.Key === item.label)[0];
-      // 知道当前标签
       if (!has) {
         has = { Key: item.label };
         PageConfig.Params.push(has);
+        line.push(NaN);
       }
       const iii = PageConfig.Params.indexOf(has);
       line[iii] = amount;
@@ -101,6 +101,36 @@ export const PageDataPush = (PageConfig: any, data: any) => {
   Total.forEach(([num1, num2], i) => {
     const ri = i + 1;
     if (!isNaN(line[ri])) line[ri] = line[ri].toNumber();
+  });
+
+  // console.log(PageConfig.EndTime, line, data);
+  PageConfig.Data.push(line);
+};
+
+// "snapshot_time": 1598716800000,
+// "platform_total_amount": "174227.62457400",
+// "user_total_amount": "167386.43236869",
+// "assets_rate": "1.04",
+// "platform_wallet_assets": [
+
+export const PageDataPush2 = (PageConfig: any, data: any) => {
+  const line = PageConfig.Params.map(() => NaN);
+  line[0] = data.snapshot_time; // X轴，时间
+  line[1] = data.platform_total_amount;
+  line[2] = data.assets_rate;
+
+  data.platform_wallet_assets.forEach((item: any, index: number) => {
+    item.label = SysName(item.label);
+    // const amount = parseFloat(item.amount);
+
+    let has = PageConfig.Params.filter((p: any) => p.Key === item.address)[0];
+    if (!has) {
+      has = { Key: item.address, label: item.label };
+      PageConfig.Params.push(has);
+      line.push(NaN);
+    }
+    const iii = PageConfig.Params.indexOf(has);
+    line[iii] = item.amount;
   });
 
   // console.log(PageConfig.EndTime, line, data);

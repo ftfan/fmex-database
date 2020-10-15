@@ -3,7 +3,7 @@ import axios from 'axios';
 import { OssClient } from '../lib/oss';
 import { DateFormat, MD5 } from '../lib/utils';
 import { AppConfig } from '../app.config';
-import { DataParse, PageDataPush } from '../lib/data-parse';
+import { DataParse, PageDataPush, PageDataPush2 } from '../lib/data-parse';
 
 const OneDayTime = 24 * 60 * 60 * 1000;
 
@@ -424,19 +424,25 @@ class BakUpHandler {
 
   BakPageConfig(logggg: number) {
     const OssUrl = '/report/account/snapshot/';
+    const OssUrl2 = '/report/platform/snapshot/';
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayTime = new Date(DateFormat(yesterday, 'yyyy-MM-dd')).getTime();
 
     this.PlatformCurrency.forEach(async (item) => {
       const Currency = item.toLocaleUpperCase();
-      const Conf = {
-        OssUrl: `${OssUrl}${Currency}.json`,
-      };
-      if (ReqPromiseHandler[Conf.OssUrl]) return;
-      ReqPromiseHandler[Conf.OssUrl] = this.UpdatePageConfig(logggg, yesterdayTime, Currency, Conf.OssUrl).finally(() => {
-        ReqPromiseHandler[Conf.OssUrl] = null;
-      });
+      const RealOssUrl = `${OssUrl}${Currency}.json`;
+      const RealOssUrl2 = `${OssUrl2}${Currency}.json`;
+      if (!ReqPromiseHandler[RealOssUrl]) {
+        ReqPromiseHandler[RealOssUrl] = this.UpdatePageConfig(logggg, yesterdayTime, Currency, RealOssUrl).finally(() => {
+          ReqPromiseHandler[RealOssUrl] = null;
+        });
+      }
+      if (!ReqPromiseHandler[RealOssUrl2]) {
+        ReqPromiseHandler[RealOssUrl2] = this.UpdatePageConfig2(logggg, yesterdayTime, Currency, RealOssUrl2).finally(() => {
+          ReqPromiseHandler[RealOssUrl2] = null;
+        });
+      }
     });
   }
 
@@ -477,6 +483,59 @@ class BakUpHandler {
       PageConfig.Version++;
       PageConfig.EndTime = DateFormat(time, 'yyyy-MM-dd');
       PageDataPush(PageConfig, res.data);
+      const next = time + OneDayTime;
+      if (next > yesterdayTime) return;
+      return GetPageData(next, times);
+    };
+    const bakVersion = PageConfig.Version;
+    await GetPageData(EndTime, 0);
+    if (bakVersion === PageConfig.Version) return console.log(logggg, OssUrl, '版本未发生变化'); // 没有任何变化
+    const bol = await OssClient.Save(OssUrl, PageConfig, {
+      headers: {
+        'Cache-Control': 'max-age=604800000', // 7天
+      },
+    });
+    if (!bol) return console.log(logggg, OssUrl, '保存失败~~');
+    LastBakPageConfig[OssUrl] = PageConfig;
+  }
+
+  async UpdatePageConfig2(logggg: number, yesterdayTime: number, Currency: string, OssUrl: string) {
+    let PageConfig = JSON.parse(JSON.stringify(LastBakPageConfig[OssUrl] || null));
+    if (!PageConfig) {
+      if (OSSErrorUrl[OssUrl] > 100) return console.error(logggg, OssUrl, 'OSS 请求错误太多，直接异常');
+      // 获取已有配置
+      const res = await axios.get(`${AliUrl}${OssUrl}`).catch((e) => Promise.resolve(e && e.response));
+      if (!res || res.status !== 200) {
+        OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
+        return console.error(logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
+      }
+      PageConfig = res.data;
+      LastBakPageConfig[OssUrl] = res.data;
+    }
+
+    let EndTime = 0;
+    if (PageConfig.EndTime) {
+      EndTime = new Date(PageConfig.EndTime).getTime() + OneDayTime;
+    } else {
+      EndTime = new Date(PageConfig.BeginTime).getTime();
+    }
+    // 在周期内，不触发更新
+    const EndDate = new Date(EndTime);
+    // 每个周一更新
+    if (new Date().getDay() !== 4) return console.log(logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
+    if (EndTime > yesterdayTime) return console.log(logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
+
+    const GetPageData = async (time: number, times: number): Promise<any> => {
+      const DateStr = DateFormat(time, 'yyyy/MM/dd');
+      const url = `/fmex/broker/v3/zkp-assets/account/snapshot/${Currency}/${DateStr}.json`;
+      let res = await axios.get(`${AliUrl}${url}`).catch((e) => Promise.resolve(e && e.response));
+      if (!res || res.status !== 200) {
+        if (times < 5) return GetPageData(time, ++times);
+        res = { data: [] };
+      }
+      PageConfig.Version++;
+      PageConfig.EndTime = DateFormat(time, 'yyyy-MM-dd');
+      PageDataPush2(PageConfig, res.data);
       const next = time + OneDayTime;
       if (next > yesterdayTime) return;
       return GetPageData(next, times);
