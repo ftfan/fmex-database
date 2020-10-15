@@ -117,7 +117,8 @@ export const PageDataPush2 = (PageConfig: any, data: any) => {
   const line = PageConfig.Params.map(() => NaN);
   line[0] = data.snapshot_time; // X轴，时间
   line[1] = data.platform_total_amount;
-  line[2] = data.assets_rate;
+  line[2] = data.user_total_amount;
+  line[3] = data.assets_rate;
 
   data.platform_wallet_assets.forEach((item: any, index: number) => {
     item.address_label = SysName(item.address_label);
