@@ -264,7 +264,7 @@ class BakUpHandler {
       console.log(logggg, SaveUrl, '数据重复');
       return Promise.resolve();
     }
-    const res = await axios.get(item.OriginUrl, { timeout }).catch((e) => Promise.resolve(null));
+    const res = await axios.get(item.OriginUrl, { timeout, headers: { 'accept-language': 'zh,zh-CN;q=0.9,en;q=0.8' } }).catch((e) => Promise.resolve(null));
     if (!res || res.status !== 200) {
       console.error('LoadAndSave error', res && res.status, item.OriginUrl);
       return this.LoadAndSave(item, ++times, logggg);
@@ -379,7 +379,7 @@ class BakUpHandler {
               if (PageCache24H.Data[id]) {
                 resData = PageCache24H.Data[id];
               } else {
-                const res = await axios.get(item.OriginUrl, { params: { id }, timeout }).catch((e) => Promise.resolve(e && e.response));
+                const res = await axios.get(item.OriginUrl, { params: { id }, timeout, headers: { 'accept-language': 'zh,zh-CN;q=0.9,en;q=0.8' } }).catch((e) => Promise.resolve(e && e.response));
                 if (!res || res.status !== 200 || !res.data || (res.data.status !== 0 && res.data.status !== 'ok')) return GetNextPage(id, ++times);
                 resData = res.data.data;
                 PageCache24H.Data[id] = res.data.data;

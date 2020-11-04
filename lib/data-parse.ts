@@ -22,11 +22,25 @@ export const DataParse = (data: any) => {
   return fun(data.Data, data.Params);
 };
 export const SysName = (name: string) => {
-  if (name === 'Futures Insurance Fund') return '合约保险基金';
-  if (name === 'Fee income') return '合约手续费收入';
-  if (name === 'Account with Unrealised PNL') return '合约未实现盈亏账户';
-  if (name === 'xxxxxdsadsadsad') return 'FUSD解锁账户';
-  return name;
+  switch (name) {
+    case 'Futures Insurance Fund':
+      return '合约保险基金';
+    case 'Fee income':
+    case 'Contract Fee income':
+      return '合约手续费收入';
+    case 'Spot Fee income':
+      return '现货手续费收入';
+    case 'Account with Unrealised PNL':
+      return '合约未实现盈亏账户';
+    case 'xxxxxdsadsadsad':
+      return 'FUSD解锁账户';
+    case 'Hot wallet collection address':
+      return '热钱包归集地址';
+    case 'Community multiple-signature address':
+      return '社区多签地址';
+    default:
+      return name;
+  }
 };
 export const NumParse = (str: string) => {
   if (!str) return 0;
