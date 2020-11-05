@@ -57,6 +57,35 @@ export const ParamsNumParse = (str: string) => {
   return str.split('~').map(NumParse);
 };
 
+/**
+ * 因为历史原因，单个标签，有多个语言和注释。
+ * 这里过滤
+ */
+export const PageConfigHackFilter = (PageConfig: any, index = 0): any => {
+  if (index >= PageConfig.Params.length) return;
+  const item = PageConfig.Params[index];
+  if (index < 16) return PageConfigHackFilter(PageConfig, ++index); // 前面固定Key，非标签数据
+  const name = SysName(item.Key);
+  if (name === item.Key) return PageConfigHackFilter(PageConfig, ++index); // 标签一致
+  const real = PageConfig.Params.filter((item: any) => item.Key === name)[0];
+  const realIndex = PageConfig.Params.indexOf(real);
+  if (realIndex === -1) return PageConfigHackFilter(PageConfig, ++index);
+
+  // merge
+  PageConfig.Data.forEach((data: any) => {
+    const val = data[index];
+    while (data.length <= index) return; // 当前数据上不存在 该标签
+    while (data.length <= realIndex) data.push(null);
+    const old = data[realIndex];
+    data[realIndex] = isNaN(val) ? old : old || val; // 如果数据为null。直接用旧数据，尽管旧数据也会是null
+
+    data.splice(index, 1);
+  });
+  // delete
+  PageConfig.Params.splice(index, 1);
+  return PageConfigHackFilter(PageConfig, index);
+};
+
 export const PageDataPush = (PageConfig: any, data: any) => {
   const line = PageConfig.Params.map(() => NaN);
   line[0] = PageConfig.EndTime; // X轴，时间

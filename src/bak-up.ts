@@ -3,7 +3,7 @@ import axios from 'axios';
 import { OssClient } from '../lib/oss';
 import { DateFormat, MD5 } from '../lib/utils';
 import { AppConfig } from '../app.config';
-import { DataParse, PageDataPush, PageDataPush2 } from '../lib/data-parse';
+import { DataParse, PageConfigHackFilter, PageDataPush, PageDataPush2 } from '../lib/data-parse';
 
 const OneDayTime = 24 * 60 * 60 * 1000;
 
@@ -469,7 +469,7 @@ class BakUpHandler {
     // 在周期内，不触发更新
     // const EndDate = new Date(EndTime);
     // 每个周一更新
-    if (new Date().getDay() !== 4) return console.log(logggg, OssUrl, `${new Date().getDay()}不是周一不统计`);
+    if (new Date().getDay() !== 4) return console.log(logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
     if (EndTime > yesterdayTime) return console.log(logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
@@ -477,11 +477,12 @@ class BakUpHandler {
       const url = `/fmex/api/broker/v3/zkp-assets/account/snapshot/${Currency}/${DateStr}.json`;
       let res = await axios.get(`${AliUrl}${url}`).catch((e) => Promise.resolve(e && e.response));
       if (!res || res.status !== 200) {
-        if (times < 5) return GetPageData(time, ++times);
+        if (times < 3) return GetPageData(time, ++times);
         res = { data: [] };
       }
       PageConfig.Version++;
       PageConfig.EndTime = DateFormat(time, 'yyyy-MM-dd');
+      PageConfigHackFilter(PageConfig);
       PageDataPush(PageConfig, res.data);
       const next = time + OneDayTime;
       if (next > yesterdayTime) return;
