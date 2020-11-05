@@ -521,7 +521,7 @@ class BakUpHandler {
     // 在周期内，不触发更新
     // const EndDate = new Date(EndTime);
     // 每个周一更新
-    if (new Date().getDay() !== 4) return console.log(logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
+    // if (new Date().getDay() !== 4) return console.log(logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
     if (EndTime > yesterdayTime) return console.log(logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
