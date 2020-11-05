@@ -1,0 +1,9 @@
+{
+  "Symbol": "fmex",
+  "Version": 0,
+  "BeginTime": "2020-11-05",
+  "EndTime": "",
+  "DataParse": "parse1",
+  "Params": [{ "Key": "snapshot_time" }, { "Key": "platform_total_amount" }, { "Key": "user_total_amount" }, { "Key": "assets_rate" }],
+  "Data": []
+}

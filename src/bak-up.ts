@@ -467,9 +467,7 @@ class BakUpHandler {
       EndTime = new Date(PageConfig.BeginTime).getTime();
     }
     // 在周期内，不触发更新
-    // const EndDate = new Date(EndTime);
-    // 每周更新
-    if (new Date().getDay() !== 4) return console.log(logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
+    // if (new Date().getDay() % 2 === 1) return console.log(logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
     if (EndTime > yesterdayTime) return console.log(logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
@@ -493,7 +491,7 @@ class BakUpHandler {
     if (bakVersion === PageConfig.Version) return console.log(logggg, OssUrl, '版本未发生变化'); // 没有任何变化
     const bol = await OssClient.Save(OssUrl, PageConfig, {
       headers: {
-        'Cache-Control': 'max-age=604800000', // 7天
+        'Cache-Control': `max-age=${86400000 * 4}`, // 7天
       },
     });
     if (!bol) return console.log(logggg, OssUrl, '保存失败~~');
@@ -554,7 +552,7 @@ class BakUpHandler {
     if (bakVersion === PageConfig.Version) return console.log(logggg, OssUrl, '版本未发生变化'); // 没有任何变化
     const bol = await OssClient.Save(OssUrl, PageConfig, {
       headers: {
-        'Cache-Control': 'max-age=604800000', // 7天
+        'Cache-Control': `max-age=${86400000 * 4}`, // 7天
       },
     });
     if (!bol) return console.log(logggg, OssUrl, '保存失败~~');
