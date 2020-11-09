@@ -1,7 +1,7 @@
 import { BakUpData, BakUpStep } from '../types/app';
 import axios from 'axios';
 import { OssClient } from '../lib/oss';
-import { DateFormat, MD5 } from '../lib/utils';
+import { DateFormat, MD5, sleep } from '../lib/utils';
 import { AppConfig } from '../app.config';
 import { DataParse, PageConfigHackFilter, PageDataPush, PageDataPush2 } from '../lib/data-parse';
 
@@ -370,7 +370,7 @@ class BakUpHandler {
             }
 
             const GetNextPage = async (id: string, times = 0): Promise<any> => {
-              if (times > 5) return null; // 重试次数太多了。
+              if (times > 50) return null; // 因为失败率太高，这里重试次数加大
               console.log(logggg, 'GetNextPage', Currency, id);
 
               let resData: any;
@@ -379,7 +379,9 @@ class BakUpHandler {
               if (PageCache24H.Data[id]) {
                 resData = PageCache24H.Data[id];
               } else {
-                const res = await axios.get(item.OriginUrl, { params: { id }, timeout, headers: { 'accept-language': 'zh,zh-CN;q=0.9,en;q=0.8' } }).catch((e) => Promise.resolve(e && e.response));
+                const res = await axios
+                  .get(item.OriginUrl, { params: { id }, timeout: timeout / 2, headers: { 'accept-language': 'zh,zh-CN;q=0.9,en;q=0.8' } })
+                  .catch((e) => Promise.resolve(e && e.response));
                 if (!res || res.status !== 200 || !res.data || (res.data.status !== 0 && res.data.status !== 'ok')) return GetNextPage(id, ++times);
                 resData = res.data.data;
                 PageCache24H.Data[id] = res.data.data;
@@ -407,10 +409,10 @@ class BakUpHandler {
               const last = LastPageDataCache[cacheKey];
               LastPageDataCache[cacheKey] = DataContent;
               if (!last) return;
-              const str2 = JSON.stringify(last);
+              const str2 = JSON.stringify(last.slice(0, 100)); // 因为数据量太大，只比对100个
               const hash2 = MD5(str2);
               const llll = `${item.OssUrl}/${timeStr}.${DateFormat(new Date(), 'yyyy-MM-dd-hh-mm')}.${hash2}.json`;
-              const str1 = JSON.stringify(DataContent);
+              const str1 = JSON.stringify(DataContent.slice(0, 100));
               const hash1 = MD5(str1);
               if (hash1 !== hash2) return OssClient.Save(llll, revert.Data, item.OssOptions);
             })();
@@ -449,11 +451,17 @@ class BakUpHandler {
   async UpdatePageConfig(logggg: number, yesterdayTime: number, Currency: string, OssUrl: string) {
     let PageConfig = JSON.parse(JSON.stringify(LastBakPageConfig[OssUrl] || null));
     if (!PageConfig) {
-      if (OSSErrorUrl[OssUrl] > 100) return console.error(logggg, OssUrl, 'OSS 请求错误太多，直接异常');
+      if (OSSErrorUrl[OssUrl] > 10) return console.error(logggg, OssUrl, 'OSS 请求错误太多，直接异常');
       // 获取已有配置
       const res = await axios.get(`${AliUrl}${OssUrl}`).catch((e) => Promise.resolve(e && e.response));
+      if (res && res.status === 404) {
+        OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
+        await sleep(10 * 60 * 1000); // 等十分钟
+        return console.error(logggg, OssUrl, 'OSS 404');
+      }
       if (!res || res.status !== 200) {
         OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
+        await sleep(60 * 1000); // 等1分钟
         return console.error(logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
       }
       PageConfig = res.data;
@@ -504,8 +512,14 @@ class BakUpHandler {
       if (OSSErrorUrl[OssUrl] > 100) return console.error(logggg, OssUrl, 'OSS 请求错误太多，直接异常');
       // 获取已有配置
       const res = await axios.get(`${AliUrl}${OssUrl}`).catch((e) => Promise.resolve(e && e.response));
+      if (res && res.status === 404) {
+        OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
+        await sleep(10 * 60 * 1000); // 等十分钟
+        return console.error(logggg, OssUrl, 'OSS 404');
+      }
       if (!res || res.status !== 200) {
         OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
+        await sleep(60 * 1000); // 等1分钟
         return console.error(logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
       }
       PageConfig = res.data;
