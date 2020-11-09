@@ -345,7 +345,9 @@ class BakUpHandler {
           CacheAble: false,
           OriginUrl: `https://fmex.com/api/broker/v3/zkp-assets/account/snapshot?currencyName=${Currency}`,
           OssUrl: `/fmex/api/broker/v3/zkp-assets/account/snapshot/${Currency}`,
-          OssOptions: {},
+          OssOptions: {
+            timeout: 5 * 60000, // 5分钟超时
+          },
           Step: BakUpStep.D1,
           CheckData: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
             if (!res.data) return false;
@@ -405,7 +407,8 @@ class BakUpHandler {
 
             // 备份数据，避免到时候有追溯历史数据没有。
             // 主要对比某几条数据的id和数据的长度等信息。
-            (() => {
+            // 等待内部执行完毕，再保存，否则数据太大，同时保存容易接口超时
+            await (async () => {
               const last = LastPageDataCache[cacheKey];
               LastPageDataCache[cacheKey] = DataContent;
               if (!last) return;
