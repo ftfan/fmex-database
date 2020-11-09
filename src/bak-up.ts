@@ -290,7 +290,11 @@ class BakUpHandler {
     if (!lastData) return this.LoadAndSave(item, ++times, logggg);
     const bol = await OssClient.Save(lastData.Url, lastData.Data, item.OssOptions);
 
-    if (!bol) return this.LoadAndSave(item, ++times, logggg);
+    if (!bol) {
+      const cacheKey = `${item.OssUrl}PagesCacheHash`;
+      this.OriginCache[cacheKey] = ''; // 清空资产缓存。因为保存失败了
+      return this.LoadAndSave(item, ++times, logggg);
+    }
 
     // 一般数据都可以缓存。比如某个时间点获取的数据就是某个时间点的数据，但是零知识资产貌似有延迟一定时长（fmex目前是人工修改导致）
     if (item.CacheAble !== false) this.OriginCache[item.OriginUrl] = SaveUrl;
