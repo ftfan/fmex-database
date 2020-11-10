@@ -50,7 +50,7 @@ export const NumParse = (str: string) => {
     return parseFloat(n);
   };
   // xx+
-  if (str.indexOf('+') > -1) return NumParse(str);
+  if (str.indexOf('+') > -1) return NumParse(str.replace('+', ''));
   return NumParse(str);
 };
 export const ParamsNumParse = (str: string) => {
