@@ -45,8 +45,8 @@ export const SysName = (name: string) => {
 export const NumParse = (str: string) => {
   if (!str) return 0;
   const NumParse = (n: string) => {
-    n = n.replace('k', '1000');
-    n = n.replace('w', '10000');
+    n = n.replace('k', '000');
+    n = n.replace('w', '0000');
     return parseFloat(n);
   };
   // xx+
