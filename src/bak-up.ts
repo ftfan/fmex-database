@@ -493,7 +493,7 @@ class BakUpHandler {
         if (times < 3) return GetPageData(time, ++times);
         res = { data: [] };
       }
-      res.data = DataFilterSame(res.data);
+      DataFilterSame(res.data);
       PageConfig.Version++;
       PageConfig.EndTime = DateFormat(time, 'yyyy-MM-dd');
       PageConfigHackFilter(PageConfig);
