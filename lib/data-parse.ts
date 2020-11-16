@@ -182,3 +182,16 @@ export const PageDataPush2 = (PageConfig: any, data: any) => {
   // console.log(PageConfig.EndTime, line, data);
   PageConfig.Data.push(line);
 };
+
+// 过滤掉重复数据
+export const DataFilterSame = (data: any[]) => {
+  const hashmap: { [index: string]: string } = {};
+  const dels: any[] = [];
+  data.forEach((item) => {
+    if (hashmap[item.hash]) dels.push(item);
+    hashmap[item.hash] = item;
+  });
+  dels.forEach((item) => {
+    data.splice(data.indexOf(item), 1);
+  });
+};

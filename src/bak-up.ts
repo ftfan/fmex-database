@@ -3,7 +3,7 @@ import axios from 'axios';
 import { OssClient } from '../lib/oss';
 import { DateFormat, MD5, sleep } from '../lib/utils';
 import { AppConfig } from '../app.config';
-import { DataParse, PageConfigHackFilter, PageDataPush, PageDataPush2 } from '../lib/data-parse';
+import { DataFilterSame, DataParse, PageConfigHackFilter, PageDataPush, PageDataPush2 } from '../lib/data-parse';
 
 const OneDayTime = 24 * 60 * 60 * 1000;
 
@@ -493,6 +493,7 @@ class BakUpHandler {
         if (times < 3) return GetPageData(time, ++times);
         res = { data: [] };
       }
+      res.data = DataFilterSame(res.data);
       PageConfig.Version++;
       PageConfig.EndTime = DateFormat(time, 'yyyy-MM-dd');
       PageConfigHackFilter(PageConfig);
