@@ -105,7 +105,7 @@ class BakUpHandler {
           Url: url,
           Data: {
             DataParse: 'parse1', // 数据压缩方式，这里主要是让客户端知道怎么解析这个数据
-            Params: [{ Key: 'BTCUSD_P' }, { Key: 'ts', Add: begin.ts }, { Key: 'BTCUSD_P' }], // 重要信息提取。
+            Params: [{ Key: 'BTCUSD_P' }, { Key: 'ts', Add: begin.ts }, { Key: 'ETHUSD_P' }], // 重要信息提取。
             Data: req.data.map((i: any) => [i.BTCUSD_P, i.ts - begin.ts, i.ETHUSD_P]),
           },
         });
