@@ -3,12 +3,12 @@ import axios from 'axios';
 import { OssClient } from '../lib/oss';
 import { DateFormat, MD5, sleep } from '../lib/utils';
 import { AppConfig } from '../app.config';
-import { DataFilterSame, DataParse, PageConfigHackFilter, PageDataPush, PageDataPush2 } from '../lib/data-parse';
+import { DataFilterSame, DataParse, PageConfigHackFilter, PageDataPush, PageDataPush2, PageDataPush3 } from '../lib/data-parse';
 
 const OneDayTime = 24 * 60 * 60 * 1000;
 
 axios.interceptors.request.use((config) => {
-  console.log('axios', config.method, config.url);
+  // console.log(new Date().toISOString(),'axios', config.method, config.url);
   return config;
 }); // req处理
 
@@ -55,7 +55,7 @@ class BakUpHandler {
       OssUrl: '/fmex/api/contracts/web/v3/public/statistics',
       OssOptions: {},
       Step: BakUpStep.M1,
-      CheckData: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
         if (!res.data) return false;
         if (res.data.status !== 0 && res.data.status !== 'ok') return false;
         return true;
@@ -105,8 +105,8 @@ class BakUpHandler {
           Url: url,
           Data: {
             DataParse: 'parse1', // 数据压缩方式，这里主要是让客户端知道怎么解析这个数据
-            Params: [{ Key: 'BTCUSD_P' }, { Key: 'ts', Add: begin.ts }], // 重要信息提取。
-            Data: req.data.map((i: any) => [i.BTCUSD_P, i.ts - begin.ts]),
+            Params: [{ Key: 'BTCUSD_P' }, { Key: 'ts', Add: begin.ts }, { Key: 'BTCUSD_P' }], // 重要信息提取。
+            Data: req.data.map((i: any) => [i.BTCUSD_P, i.ts - begin.ts, i.ETHUSD_P]),
           },
         });
       },
@@ -117,7 +117,7 @@ class BakUpHandler {
       OssUrl: '/fmex/v2/market/all-tickers',
       OssOptions: {},
       Step: BakUpStep.H1,
-      CheckData: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
         if (!res.data) return false;
         if (res.data.status !== 0 && res.data.status !== 'ok') return false;
         if (timeStr !== DateFormat(res.data.data.ts, TimeMap[BakUpStep.H1])) return false;
@@ -155,6 +155,50 @@ class BakUpHandler {
       },
     },
 
+    // 【24小时均价、24小时成交量、现货】
+    {
+      OriginUrl: 'https://api.fcoin.pro/v2/market/all-tickers',
+      OssUrl: '/fcoin/v2/market/all-tickers',
+      OssOptions: {},
+      Step: BakUpStep.H1,
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        if (!res.data) return false;
+        res.data.ts = Date.now();
+        if (timeStr !== DateFormat(res.data.ts, TimeMap[BakUpStep.H1])) return false;
+        return true;
+      },
+      DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        const url = `${item.OssUrl}/${DateFormat(time, TimeMap[BakUpStep.D1])}.json`;
+        const cache = this.OriginDataCache[url];
+        let req: any;
+        if (cache && cache.url === url) {
+          req = cache.data;
+        } else {
+          req = await axios.get(AliUrl + url).catch((e) => Promise.resolve(e && e.response));
+          if (req && req.status === 404) req.data = [];
+          if (!req || (req.status !== 404 && req.status !== 200)) return null;
+          this.OriginDataCache[url] = {
+            url,
+            data: req,
+          };
+        }
+        req.data.push(res.data);
+        // 过滤重复的Key数据
+        const map: any = {};
+        const dels: any[] = [];
+        req.data.forEach((item: any) => {
+          if (map[item.ts]) dels.push(item);
+          map[item.ts] = item;
+        });
+        dels.forEach((item: any) => {
+          const index = req.data.indexOf(item);
+          if (index === -1) return;
+          req.data.splice(index, 1);
+        });
+        return Promise.resolve({ Url: url, Data: req.data });
+      },
+    },
+
     // 平台的零知识证明资产备份
     {
       OriginUrl: `https://fmex.com/api/broker/v3/zkp-assets/platform/currency`,
@@ -165,7 +209,7 @@ class BakUpHandler {
           'Cache-Control': AppConfig.CacheControl,
         },
       },
-      CheckData: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
         if (!res.data) return false;
         if (res.data.status !== 0 && res.data.status !== 'ok') return false;
         return true;
@@ -181,7 +225,7 @@ class BakUpHandler {
 
   Run() {
     const logggg = ++LogTimes;
-    console.log(logggg, '---------------');
+    console.log(new Date().toISOString(), logggg, '---------------');
     // 设置需要保存的资产信息
     this.BakUpDataAssets = this.GetBakUpDataAssets(logggg);
     this.BakUpData.concat(this.BakUpDataAssets).forEach(async (item) => {
@@ -204,14 +248,14 @@ class BakUpHandler {
     const fileUrl = `${item.OssUrl}/${timeStr}.json`;
     const fileUrlToday = `${item.OssUrl}/${DateFormat(now, TimeMap[BakUpStep.D1])}.json`;
     const cacheKey = item.OssUrl + 'yesterday'; // 只记录昨日的缓存文件路径。这样内存不会爆炸
-    // console.log(logggg, cacheKey, '尝试设置昨日长缓存');
+    // console.log(new Date().toISOString(),logggg, cacheKey, '尝试设置昨日长缓存');
 
     // 获取已经缓存的数据，如果该文件已经缓存了。就不需要后面的获取文件。
     const cache = this.OriginCache[cacheKey];
-    if (cache && cache === fileUrl) return console.log(logggg, cacheKey, 'has');
+    if (cache && cache === fileUrl) return console.log(new Date().toISOString(), logggg, cacheKey, 'has');
 
     const lastTime = YestoryBak.LastTime[cacheKey] || 0;
-    if (lastTime > Date.now()) return console.log(logggg, cacheKey, '10分钟内不再判断昨日缓存');
+    if (lastTime > Date.now()) return console.log(new Date().toISOString(), logggg, cacheKey, '10分钟内不再判断昨日缓存');
     YestoryBak.LastTime[cacheKey] = Date.now() + 600000;
 
     let req: any;
@@ -221,7 +265,7 @@ class BakUpHandler {
       req = bak.req;
     } else {
       req = await axios.get(AliUrl + fileUrl).catch((e) => Promise.resolve(e && e.response));
-      if (!req || req.status !== 200) return console.log(logggg, cacheKey, 'error 没获取到昨日的数据');
+      if (!req || req.status !== 200) return console.log(new Date().toISOString(), logggg, cacheKey, 'error 没获取到昨日的数据');
       YestoryBak.LastData[cacheKey] = {
         timeStr,
         req,
@@ -230,12 +274,12 @@ class BakUpHandler {
 
     // 必须今日的文件已经创建了（昨日的文件不会再被修改了）
     const today = await axios.get(AliUrl + fileUrlToday).catch((e) => Promise.resolve(e && e.response));
-    if (!today || today.status !== 200) return console.log(logggg, cacheKey, 'error 今日数据未创建');
+    if (!today || today.status !== 200) return console.log(new Date().toISOString(), logggg, cacheKey, 'error 今日数据未创建');
 
     // 已经设置了缓存
     if (req.headers && req.headers['cache-control'] === AppConfig.CacheControl) {
       this.OriginCache[cacheKey] = fileUrl;
-      return console.log(logggg, cacheKey, 'cachedddd');
+      return console.log(new Date().toISOString(), logggg, cacheKey, 'cachedddd');
     }
     const bol = await OssClient.Save(fileUrl, req.data, {
       headers: {
@@ -243,16 +287,16 @@ class BakUpHandler {
       },
     });
 
-    if (!bol) return console.log(logggg, cacheKey, '保存失败~~');
+    if (!bol) return console.log(new Date().toISOString(), logggg, cacheKey, '保存失败~~');
 
     // 该文件缓存成功，记录下来
     this.OriginCache[cacheKey] = fileUrl;
-    console.log(logggg, cacheKey, '设置缓存成功~');
+    console.log(new Date().toISOString(), logggg, cacheKey, '设置缓存成功~');
   }
 
   async LoadAndSave(item: BakUpData, times: number, logggg: number): Promise<any> {
     if (times >= 5) {
-      console.log(logggg, item.OssUrl, '失败次数大于5，放弃继续');
+      console.log(new Date().toISOString(), logggg, item.OssUrl, '失败次数大于5，放弃继续');
       return Promise.resolve();
     }
     const now = new Date();
@@ -261,22 +305,22 @@ class BakUpHandler {
 
     const SaveUrl = `${item.OssUrl}/${time}.json`;
     if (cache === SaveUrl) {
-      console.log(logggg, SaveUrl, '数据重复');
+      console.log(new Date().toISOString(), logggg, SaveUrl, '数据重复');
       return Promise.resolve();
     }
     const res = await axios.get(item.OriginUrl, { timeout, headers: { 'accept-language': 'zh,zh-CN;q=0.9,en;q=0.8' } }).catch((e) => Promise.resolve(null));
     if (!res || res.status !== 200) {
-      console.error('LoadAndSave error', res && res.status, item.OriginUrl);
+      console.error(new Date().toISOString(), 'LoadAndSave error', res && res.status, item.OriginUrl);
       return this.LoadAndSave(item, ++times, logggg);
     }
     if (item.CheckData) {
-      const bool = item.CheckData(item, res, now, time, logggg);
+      const bool = await item.CheckData(item, res, now, time, logggg);
       if (bool === '数据有效') {
-        console.log(logggg, SaveUrl, '数据有效');
+        console.log(new Date().toISOString(), logggg, SaveUrl, '数据有效');
         return;
       }
       if (bool === '这次数据无效，停止') {
-        console.log(logggg, SaveUrl, '这次数据无效，停止');
+        console.log(new Date().toISOString(), logggg, SaveUrl, '这次数据无效，停止');
         return;
       }
       if (!bool) return this.LoadAndSave(item, ++times, logggg);
@@ -284,7 +328,7 @@ class BakUpHandler {
 
     const lastData = await item.DataFilter(item, res, now, time, logggg);
     if (lastData === 'is-end') {
-      console.log(logggg, SaveUrl, 'is-end');
+      console.log(new Date().toISOString(), logggg, SaveUrl, 'is-end');
       return;
     } // 内部要求结束（数据处理完成，但是不保存最终的数据）
     if (!lastData) return this.LoadAndSave(item, ++times, logggg);
@@ -298,7 +342,7 @@ class BakUpHandler {
 
     // 一般数据都可以缓存。比如某个时间点获取的数据就是某个时间点的数据，但是零知识资产貌似有延迟一定时长（fmex目前是人工修改导致）
     if (item.CacheAble !== false) this.OriginCache[item.OriginUrl] = SaveUrl;
-    console.log(logggg, SaveUrl, 'LoadAndSave 完成');
+    console.log(new Date().toISOString(), logggg, SaveUrl, 'LoadAndSave 完成');
   }
 
   GetBakUpDataAssets(logggg: number) {
@@ -311,7 +355,7 @@ class BakUpHandler {
         .then((res) => {
           if (res.data && res.data.status === 'ok') {
             this.PlatformCurrency = res.data.data;
-            console.log(logggg, platformCurrencyUrl, res.data.data);
+            console.log(new Date().toISOString(), logggg, platformCurrencyUrl, res.data.data);
           }
         })
         .catch((e) => {
@@ -334,14 +378,17 @@ class BakUpHandler {
               'Cache-Control': AppConfig.CacheControl,
             },
           },
-          CheckData: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+          CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
             if (!res.data) return false;
             if (res.data.status !== 0 && res.data.status !== 'ok') return false;
             if (timeStr !== DateFormat(res.data.data.snapshot_time, TimeMap[BakUpStep.D1])) return '这次数据无效，停止';
             if (res.data.data.confirm_state !== 2) return '这次数据无效，停止';
             return true;
           },
-          DataFilter: (item: BakUpData, res: any, time: Date, timeStr: string) => Promise.resolve({ Url: `${item.OssUrl}/${timeStr}.json`, Data: res.data.data }),
+          DataFilter: (item: BakUpData, res: any, time: Date, timeStr: string) => {
+            this.TotalMoney(logggg, Currency, timeStr, res.data.data);
+            return Promise.resolve({ Url: `${item.OssUrl}/${timeStr}.json`, Data: res.data.data });
+          },
         },
         // 【用户资产信息备份】
         {
@@ -353,19 +400,32 @@ class BakUpHandler {
             timeout: 5 * 60000, // 5分钟超时
           },
           Step: BakUpStep.D1,
-          CheckData: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+          CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
             if (!res.data) return false;
             if (res.data.status !== 0 && res.data.status !== 'ok') return false;
 
             const cacheKey = `${item.OssUrl}PagesCacheHash`;
-            const cahceValue = JSON.stringify(res.data); // 用第一页的数据值作为校验。一样则表示后面数据都一样
-            const cache = this.OriginCache[cacheKey];
+            const cahceValue = JSON.stringify(res.data.data.content.slice(0, 20)); // 用第一页的数据值作为校验。一样则表示后面数据都一样
+            let cache = this.OriginCache[cacheKey];
+            // 如果没有缓存。获取前一天的数据作为缓存数据对比
+            if (!cache) {
+              let cc = await axios.get(`${AliUrl}${item.OssUrl}/${timeStr}.json`).catch((e) => Promise.resolve(e && e.response));
+              if (!cc || cc.status !== 200) {
+                const olddaystr = new Date(timeStr.replace(/\//g, '-'));
+                olddaystr.setDate(olddaystr.getDate() - 1);
+                cc = await axios.get(`${AliUrl}${item.OssUrl}/${DateFormat(olddaystr, 'yyyy/MM/dd')}.json`).catch((e) => Promise.resolve(e && e.response));
+              }
+              if (cc && cc.status === 200 && cc.data) {
+                this.OriginCache[cacheKey] = JSON.stringify(cc.data.slice(0, 20));
+                cache = this.OriginCache[cacheKey];
+              }
+            }
             if (cache && cache === cahceValue) return '数据有效';
             return true;
           },
           DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string) => {
             const cacheKey = `${item.OssUrl}PagesCacheHash`;
-            const cahceValue = JSON.stringify(res.data); // 用第一页的数据值作为校验。一样则表示后面数据都一样
+            const cahceValue = JSON.stringify(res.data.data.content.slice(0, 20)); // 用第一页的数据值作为校验。一样则表示后面数据都一样
 
             const Data = [res.data.data];
 
@@ -377,7 +437,7 @@ class BakUpHandler {
 
             const GetNextPage = async (id: string, times = 0): Promise<any> => {
               if (times > 50) return null; // 因为失败率太高，这里重试次数加大
-              console.log(logggg, 'GetNextPage', Currency, id);
+              console.log(new Date().toISOString(), logggg, 'GetNextPage', Currency, id);
 
               let resData: any;
 
@@ -394,7 +454,7 @@ class BakUpHandler {
               }
               const resDataa = resData!;
               Data.push(resDataa);
-              console.log(logggg, 'GetNextPage', Currency, id, resDataa.content.length);
+              console.log(new Date().toISOString(), logggg, 'GetNextPage', Currency, id, resDataa.content.length);
               if (resDataa.has_next && resDataa.next_page_id) return GetNextPage(resDataa.next_page_id);
               return true;
             };
@@ -432,16 +492,15 @@ class BakUpHandler {
   }
 
   BakPageConfig(logggg: number) {
-    const OssUrl = '/report/account/snapshot/';
-    const OssUrl2 = '/report/platform/snapshot/';
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayTime = new Date(DateFormat(yesterday, 'yyyy-MM-dd')).getTime();
 
     this.PlatformCurrency.forEach(async (item) => {
       const Currency = item.toLocaleUpperCase();
-      const RealOssUrl = `${OssUrl}${Currency}.json`;
-      const RealOssUrl2 = `${OssUrl2}${Currency}.json`;
+      const RealOssUrl = `/report/account/snapshot/${Currency}.json`;
+      const RealOssUrl2 = `/report/platform/snapshot/${Currency}.json`;
+      const RealOssUrl3 = `/report/total/${Currency}.json`;
       if (!ReqPromiseHandler[RealOssUrl]) {
         ReqPromiseHandler[RealOssUrl] = this.UpdatePageConfig(logggg, yesterdayTime, Currency, RealOssUrl).finally(() => {
           ReqPromiseHandler[RealOssUrl] = null;
@@ -452,24 +511,30 @@ class BakUpHandler {
           ReqPromiseHandler[RealOssUrl2] = null;
         });
       }
+      if (!ReqPromiseHandler[RealOssUrl3]) {
+        ReqPromiseHandler[RealOssUrl3] = this.UpdatePageConfig3(logggg, yesterdayTime, Currency, RealOssUrl3).finally(() => {
+          ReqPromiseHandler[RealOssUrl3] = null;
+        });
+      }
     });
   }
 
+  // 统计 account/snapshot
   async UpdatePageConfig(logggg: number, yesterdayTime: number, Currency: string, OssUrl: string) {
     let PageConfig = JSON.parse(JSON.stringify(LastBakPageConfig[OssUrl] || null));
     if (!PageConfig) {
-      if (OSSErrorUrl[OssUrl] > 10) return console.error(logggg, OssUrl, 'OSS 请求错误太多，直接异常');
+      if (OSSErrorUrl[OssUrl] > 10) return console.error(new Date().toISOString(), logggg, OssUrl, 'OSS 请求错误太多，直接异常');
       // 获取已有配置
       const res = await axios.get(`${AliUrl}${OssUrl}`).catch((e) => Promise.resolve(e && e.response));
       if (res && res.status === 404) {
         OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
         await sleep(10 * 60 * 1000); // 等十分钟
-        return console.error(logggg, OssUrl, 'OSS 404');
+        return console.error(new Date().toISOString(), logggg, OssUrl, 'OSS 404');
       }
       if (!res || res.status !== 200) {
         OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
         await sleep(60 * 1000); // 等1分钟
-        return console.error(logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
+        return console.error(new Date().toISOString(), logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
       }
       PageConfig = res.data;
       LastBakPageConfig[OssUrl] = res.data;
@@ -482,8 +547,8 @@ class BakUpHandler {
       EndTime = new Date(PageConfig.BeginTime).getTime();
     }
     // 在周期内，不触发更新
-    // if (new Date().getDay() % 2 === 1) return console.log(logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
-    if (EndTime > yesterdayTime) return console.log(logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
+    // if (new Date().getDay() % 2 === 1) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
+    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
       const DateStr = DateFormat(time, 'yyyy/MM/dd');
@@ -504,31 +569,32 @@ class BakUpHandler {
     };
     const bakVersion = PageConfig.Version;
     await GetPageData(EndTime, 0);
-    if (bakVersion === PageConfig.Version) return console.log(logggg, OssUrl, '版本未发生变化'); // 没有任何变化
+    if (bakVersion === PageConfig.Version) return console.log(new Date().toISOString(), logggg, OssUrl, '版本未发生变化'); // 没有任何变化
     const bol = await OssClient.Save(OssUrl, PageConfig, {
       headers: {
         'Cache-Control': `max-age=${86400000 * 4}`, // 7天
       },
     });
-    if (!bol) return console.log(logggg, OssUrl, '保存失败~~');
+    if (!bol) return console.log(new Date().toISOString(), logggg, OssUrl, '保存失败~~');
     LastBakPageConfig[OssUrl] = PageConfig;
   }
 
+  // 统计 platform/snapshot
   async UpdatePageConfig2(logggg: number, yesterdayTime: number, Currency: string, OssUrl: string) {
     let PageConfig = JSON.parse(JSON.stringify(LastBakPageConfig[OssUrl] || null));
     if (!PageConfig) {
-      if (OSSErrorUrl[OssUrl] > 100) return console.error(logggg, OssUrl, 'OSS 请求错误太多，直接异常');
+      if (OSSErrorUrl[OssUrl] > 100) return console.error(new Date().toISOString(), logggg, OssUrl, 'OSS 请求错误太多，直接异常');
       // 获取已有配置
       const res = await axios.get(`${AliUrl}${OssUrl}`).catch((e) => Promise.resolve(e && e.response));
       if (res && res.status === 404) {
         OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
         await sleep(10 * 60 * 1000); // 等十分钟
-        return console.error(logggg, OssUrl, 'OSS 404');
+        return console.error(new Date().toISOString(), logggg, OssUrl, 'OSS 404');
       }
       if (!res || res.status !== 200) {
         OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
         await sleep(60 * 1000); // 等1分钟
-        return console.error(logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
+        return console.error(new Date().toISOString(), logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
       }
       PageConfig = res.data;
       LastBakPageConfig[OssUrl] = res.data;
@@ -543,8 +609,8 @@ class BakUpHandler {
     // 在周期内，不触发更新
     // const EndDate = new Date(EndTime);
     // 每个周一更新
-    // if (new Date().getDay() !== 4) return console.log(logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
-    if (EndTime > yesterdayTime) return console.log(logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
+    // if (new Date().getDay() !== 4) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
+    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
       const DateStr = DateFormat(time, 'yyyy/MM/dd');
@@ -571,14 +637,127 @@ class BakUpHandler {
     };
     const bakVersion = PageConfig.Version;
     await GetPageData(EndTime, 0);
-    if (bakVersion === PageConfig.Version) return console.log(logggg, OssUrl, '版本未发生变化'); // 没有任何变化
+    if (bakVersion === PageConfig.Version) return console.log(new Date().toISOString(), logggg, OssUrl, '版本未发生变化'); // 没有任何变化
     const bol = await OssClient.Save(OssUrl, PageConfig, {
       headers: {
         'Cache-Control': `max-age=${86400000 * 4}`, // 7天
       },
     });
-    if (!bol) return console.log(logggg, OssUrl, '保存失败~~');
+    if (!bol) return console.log(new Date().toISOString(), logggg, OssUrl, '保存失败~~');
     LastBakPageConfig[OssUrl] = PageConfig;
+  }
+
+  // 统计 total
+  async UpdatePageConfig3(logggg: number, yesterdayTime: number, Currency: string, OssUrl: string) {
+    let PageConfig = JSON.parse(JSON.stringify(LastBakPageConfig[OssUrl] || null));
+    if (!PageConfig) {
+      if (OSSErrorUrl[OssUrl] > 100) return console.error(new Date().toISOString(), logggg, OssUrl, 'OSS 请求错误太多，直接异常');
+      // 获取已有配置
+      const res = await axios.get(`${AliUrl}${OssUrl}`).catch((e) => Promise.resolve(e && e.response));
+      if (res && res.status === 404) {
+        OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
+        await sleep(10 * 60 * 1000); // 等十分钟
+        return console.error(new Date().toISOString(), logggg, OssUrl, 'OSS 404');
+      }
+      if (!res || res.status !== 200) {
+        OSSErrorUrl[OssUrl] = (OSSErrorUrl[OssUrl] || 0) + 1;
+        await sleep(60 * 1000); // 等1分钟
+        return console.error(new Date().toISOString(), logggg, OssUrl, '未找到OSS配置文件'); // 该文件必须存在。不存在不备份
+      }
+      PageConfig = res.data;
+      LastBakPageConfig[OssUrl] = res.data;
+    }
+
+    let EndTime = 0;
+    if (PageConfig.EndTime) {
+      EndTime = new Date(PageConfig.EndTime).getTime() + OneDayTime;
+    } else {
+      EndTime = new Date(PageConfig.BeginTime).getTime();
+    }
+    // 在周期内，不触发更新
+    // const EndDate = new Date(EndTime);
+    // 每个周一更新
+    // if (new Date().getDay() !== 4) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
+    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
+
+    const GetPageData = async (time: number, times: number): Promise<any> => {
+      const DateStr = DateFormat(time, 'yyyy/MM/dd');
+      const url = `/report/total/${Currency}/${DateStr}.json`;
+      let res = await axios.get(`${AliUrl}${url}`).catch((e) => Promise.resolve(e && e.response));
+      // 该文件还未创建。这里是因为统计逻辑中途加上的。所以没有该文件。
+      if (res && res.status === 404) {
+        const origin = await axios.get(`${AliUrl}/fmex/broker/v3/zkp-assets/platform/snapshot/${Currency}/${DateStr}.json`).catch((e) => Promise.resolve(e && e.response));
+        if (origin && origin.status === 200) {
+          await this.TotalMoney(logggg, Currency, DateStr, origin.data);
+        }
+      }
+      if (!res || res.status !== 200) {
+        if (times < 5) return GetPageData(time, ++times);
+        res = {
+          data: {
+            snapshot_time: 0,
+            Currency,
+            kline: {},
+            platform_total_amount: '',
+            user_total_amount: '',
+          },
+        };
+      }
+      PageConfig.Version++;
+      PageConfig.EndTime = DateFormat(time, 'yyyy-MM-dd');
+      PageDataPush3(PageConfig, res.data);
+      const next = time + OneDayTime;
+      if (next > yesterdayTime) return;
+      return GetPageData(next, times);
+    };
+    const bakVersion = PageConfig.Version;
+    await GetPageData(EndTime, 0);
+    if (bakVersion === PageConfig.Version) return console.log(new Date().toISOString(), logggg, OssUrl, '版本未发生变化'); // 没有任何变化
+    const bol = await OssClient.Save(OssUrl, PageConfig, {
+      headers: {
+        'Cache-Control': `max-age=${86400000 * 4}`, // 7天
+      },
+    });
+    if (!bol) return console.log(new Date().toISOString(), logggg, OssUrl, '保存失败~~');
+    LastBakPageConfig[OssUrl] = PageConfig;
+  }
+
+  async TotalMoney(logggg: number, Currency: string, timeStr: string, data: any, times = 0): Promise<boolean> {
+    if (times > 2) console.error(new Date().toISOString(), logggg, Currency, timeStr);
+    if (times > 4) return Promise.resolve(false);
+    const time = new Date(timeStr.replace(/\//g, '-')).getTime() + 1;
+    if (Currency === 'USDT') {
+      const savedata = {
+        snapshot_time: data.snapshot_time,
+        Currency,
+        kline: {
+          quote_vol: 1,
+          base_vol: 1,
+        },
+        platform_total_amount: data.platform_total_amount,
+        user_total_amount: data.user_total_amount,
+      };
+      const bol = await OssClient.Save(`/report/total/${Currency}/${timeStr}.json`, savedata, {});
+      if (!bol) return this.TotalMoney(logggg, Currency, timeStr, data, ++times);
+      return Promise.resolve(true);
+    }
+    // 获取当日的K线图
+    const kline = await axios
+      .get(`https://api.fcoin.pro/v2/market/candles/D1/${Currency.toLocaleLowerCase()}usdt?limit=1&before=${time}`)
+      .then((res) => res.data)
+      .catch((e) => Promise.resolve(e && e.response));
+    if (!kline || !kline.data || (kline.status !== 0 && kline.status !== 'ok')) return this.TotalMoney(logggg, Currency, timeStr, data, ++times);
+    const savedata = {
+      snapshot_time: data.snapshot_time,
+      Currency,
+      kline: kline.data[0],
+      platform_total_amount: data.platform_total_amount,
+      user_total_amount: data.user_total_amount,
+    };
+    const bol = await OssClient.Save(`/report/total/${Currency}/${timeStr}.json`, savedata, {});
+    if (!bol) return this.TotalMoney(logggg, Currency, timeStr, data, ++times);
+    console.log(new Date().toISOString(), logggg, 'TotalMoney', Currency, timeStr, times);
+    return Promise.resolve(true);
   }
 }
 

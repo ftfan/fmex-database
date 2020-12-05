@@ -9,7 +9,7 @@ export interface BakUpData {
   OriginUrl: string;
   OssUrl: string;
   Step: BakUpStep; // 时间周期：一分钟备份一次，还是一天备份一次。
-  CheckData?: (item: BakUpData, res: any, time: Date, timeStr: string, logggg: number) => boolean | string; // 检查返回的数据是否是合格的数据
+  CheckData?: (item: BakUpData, res: any, time: Date, timeStr: string, logggg: number) => Promise<boolean | string>; // 检查返回的数据是否是合格的数据
   DataFilter: (item: BakUpData, res: any, time: Date, timeStr: string, logggg: number) => Promise<any>; // 最终存储的数据
   OssOptions: OSS.PutObjectOptions;
 

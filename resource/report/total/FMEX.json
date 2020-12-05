@@ -1,0 +1,17 @@
+{
+  "Symbol": "fmex",
+  "Version": 0,
+  "BeginTime": "2020-11-05",
+  "EndTime": "",
+  "DataParse": "parse1",
+  "Params": [
+    { "Key": "snapshot_time" },
+    { "Key": "platform_total_amount" },
+    { "Key": "user_total_amount" },
+    { "Key": "quote_vol" },
+    { "Key": "base_vol" },
+    { "Key": "platform_total_value" },
+    { "Key": "user_total_value" }
+  ],
+  "Data": []
+}

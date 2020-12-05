@@ -183,6 +183,24 @@ export const PageDataPush2 = (PageConfig: any, data: any) => {
   PageConfig.Data.push(line);
 };
 
+// Currency,
+// kline: {},
+// platform_total_amount: '',
+// user_total_amount: ''
+export const PageDataPush3 = (PageConfig: any, data: any) => {
+  const line = PageConfig.Params.map(() => NaN);
+  line[0] = data.snapshot_time; // X轴，时间
+  line[1] = data.platform_total_amount;
+  line[2] = data.user_total_amount;
+  line[3] = data.kline.quote_vol;
+  line[4] = data.kline.base_vol;
+  const price = new BigNumber(data.kline.quote_vol).div(data.kline.base_vol);
+  line[5] = price.multipliedBy(data.platform_total_amount).toString();
+  line[6] = price.multipliedBy(data.user_total_amount).toString();
+
+  PageConfig.Data.push(line);
+};
+
 // 过滤掉重复数据
 export const DataFilterSame = (data: any[]) => {
   const hashmap: { [index: string]: string } = {};
