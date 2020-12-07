@@ -765,7 +765,7 @@ class BakUpHandler {
       .get(`https://api.fcoin.pro/v2/market/candles/D1/${Currency.toLocaleLowerCase()}usdt?limit=1&before=${time}`)
       .then((res) => res.data)
       .catch((e) => Promise.resolve(e && e.response));
-    if (!kline || !kline.data || (kline.status !== 0 && kline.status !== 'ok')) {
+    if (!kline || !kline.data || !kline.data[0] || (kline.status !== 0 && kline.status !== 'ok')) {
       const tryy = await axios
         .get(`https://api.cococoin.com/openapi/quote/v1/klines?symbol=${Currency.toLocaleUpperCase()}USDT&interval=1d&limit=1&endTime=${data.snapshot_time}`)
         .then((res) => res.data)
