@@ -10,7 +10,15 @@ const OneDayTime = 24 * 60 * 60 * 1000;
 axios.interceptors.request.use((config) => {
   // console.log(new Date().toISOString(),'axios', config.method, config.url);
   return config;
-}); // req处理
+});
+axios.interceptors.response.use((config) => {
+  if (config.status !== 200) console.error(new Date().toISOString(), 'axios response', config.status, config.config.url);
+  if (config.data && typeof config.data === 'object') {
+    if (typeof config.data.status === 'string' && config.data.status !== 'ok') console.error(new Date().toISOString(), 'axios response', config.data.status, config.config.url);
+    if (typeof config.data.status === 'number' && config.data.status !== 0) console.error(new Date().toISOString(), 'axios response', config.data.status, config.config.url);
+  }
+  return config;
+});
 
 const TimeMap = {
   [BakUpStep.M1]: 'yyyy/MM/dd/hh:mm',
@@ -683,9 +691,11 @@ class BakUpHandler {
     const GetPageData = async (time: number, times: number): Promise<any> => {
       const DateStr = DateFormat(time, 'yyyy/MM/dd');
       const url = `/report/total/${Currency}/${DateStr}.json`;
+      // 加载当天数据
       let res = await axios.get(`${AliUrl}${url}`).catch((e) => Promise.resolve(e && e.response));
       // 该文件还未创建。这里是因为统计逻辑中途加上的。所以没有该文件。
       if (res && res.status === 404) {
+        // 加载当天的资产数据，创建折合数据
         const origin = await axios.get(`${AliUrl}/fmex/broker/v3/zkp-assets/platform/snapshot/${Currency}/${DateStr}.json`).catch((e) => Promise.resolve(e && e.response));
         if (origin && origin.status === 200) {
           await this.TotalMoney(logggg, Currency, DateStr, origin.data);
@@ -725,7 +735,7 @@ class BakUpHandler {
 
   async TotalMoney(logggg: number, Currency: string, timeStr: string, data: any, times = 0): Promise<boolean> {
     if (times > 2) console.error(new Date().toISOString(), logggg, Currency, timeStr);
-    if (times > 4) return Promise.resolve(false);
+    if (times > 10) return Promise.resolve(false);
     const time = new Date(timeStr.replace(/\//g, '-')).getTime() + 1;
     if (Currency === 'USDT') {
       const savedata = {
