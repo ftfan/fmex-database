@@ -774,17 +774,19 @@ class BakUpHandler {
       const tdd = tryy[0];
       kline = {
         status: 0,
-        data: {
-          open: tdd[1],
-          close: tdd[4],
-          high: tdd[2],
-          quote_vol: tdd[7],
-          id: tdd[0],
-          count: tdd[8],
-          low: tdd[3],
-          seq: tdd[0],
-          base_vol: tdd[5],
-        },
+        data: [
+          {
+            open: tdd[1],
+            close: tdd[4],
+            high: tdd[2],
+            quote_vol: tdd[7],
+            id: tdd[0],
+            count: tdd[8],
+            low: tdd[3],
+            seq: tdd[0],
+            base_vol: tdd[5],
+          },
+        ],
       };
     }
     const savedata = {
