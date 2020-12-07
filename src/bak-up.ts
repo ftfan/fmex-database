@@ -761,11 +761,32 @@ class BakUpHandler {
       return Promise.resolve(savedata);
     }
     // 获取当日的K线图
-    const kline = await axios
+    let kline = await axios
       .get(`https://api.fcoin.pro/v2/market/candles/D1/${Currency.toLocaleLowerCase()}usdt?limit=1&before=${time}`)
       .then((res) => res.data)
       .catch((e) => Promise.resolve(e && e.response));
-    if (!kline || !kline.data || (kline.status !== 0 && kline.status !== 'ok')) return this.TotalMoney(logggg, Currency, timeStr, data, ++times);
+    if (!kline || !kline.data || (kline.status !== 0 && kline.status !== 'ok')) {
+      const tryy = await axios
+        .get(`https://api.cococoin.com/openapi/quote/v1/klines?symbol=${Currency.toLocaleUpperCase()}&interval=1d&limit=1&endTime=${data.snapshot_time}`)
+        .then((res) => res.data)
+        .catch((e) => Promise.resolve(e && e.response));
+      if (!tryy || !tryy[0]) return this.TotalMoney(logggg, Currency, timeStr, data, ++times);
+      const tdd = tryy[0];
+      kline = {
+        status: 0,
+        data: {
+          open: tdd[1],
+          close: tdd[4],
+          high: tdd[2],
+          quote_vol: tdd[7],
+          id: tdd[0],
+          count: tdd[8],
+          low: tdd[3],
+          seq: tdd[0],
+          base_vol: tdd[5],
+        },
+      };
+    }
     const savedata = {
       snapshot_time: data.snapshot_time,
       Currency,
