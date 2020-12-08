@@ -56,176 +56,176 @@ const timeout = 20000;
 class BakUpHandler {
   OriginCache: { [index: string]: string } = {};
   OriginDataCache: { [index: string]: { url: string; data: any } } = {};
-  BakUpData: BakUpData[] = [];
-  // BakUpData: BakUpData[] = [
-  //   // 【未平仓】
-  //   {
-  //     OriginUrl: 'https://fmex.com/api/contracts/web/v3/public/statistics',
-  //     OssUrl: '/fmex/api/contracts/web/v3/public/statistics',
-  //     OssOptions: {},
-  //     Step: BakUpStep.M1,
-  //     CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
-  //       if (!res.data) return false;
-  //       if (res.data.status !== 0 && res.data.status !== 'ok') return false;
-  //       return true;
-  //     },
-  //     DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
-  //       const url = `${item.OssUrl}/${DateFormat(time, TimeMap[BakUpStep.D1])}.json`;
-  //       const cache = this.OriginDataCache[url];
-  //       let req: any;
-  //       if (cache && cache.url === url) {
-  //         req = cache.data;
-  //       } else {
-  //         req = await axios.get(AliUrl + url).catch((e) => Promise.resolve(e && e.response));
-  //         if (req && req.status === 404) req.data = [];
-  //         if (!req || (req.status !== 404 && req.status !== 200)) return null;
-  //         req.data = DataParse(req.data); // 解析数据。
-  //         this.OriginDataCache[url] = {
-  //           url,
-  //           data: req,
-  //         };
-  //       }
+  // BakUpData: BakUpData[] = [];
+  BakUpData: BakUpData[] = [
+    // 【未平仓】
+    {
+      OriginUrl: 'https://fmex.com/api/contracts/web/v3/public/statistics',
+      OssUrl: '/fmex/api/contracts/web/v3/public/statistics',
+      OssOptions: {},
+      Step: BakUpStep.M1,
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        if (!res.data) return false;
+        if (res.data.status !== 0 && res.data.status !== 'ok') return false;
+        return true;
+      },
+      DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        const url = `${item.OssUrl}/${DateFormat(time, TimeMap[BakUpStep.D1])}.json`;
+        const cache = this.OriginDataCache[url];
+        let req: any;
+        if (cache && cache.url === url) {
+          req = cache.data;
+        } else {
+          req = await axios.get(AliUrl + url).catch((e) => Promise.resolve(e && e.response));
+          if (req && req.status === 404) req.data = [];
+          if (!req || (req.status !== 404 && req.status !== 200)) return null;
+          req.data = DataParse(req.data); // 解析数据。
+          this.OriginDataCache[url] = {
+            url,
+            data: req,
+          };
+        }
 
-  //       res.data.data.ts = time.getTime();
-  //       req.data.push(res.data.data);
-  //       // 过滤重复的Key数据
-  //       const map: any = {};
-  //       const dels: any[] = [];
-  //       req.data.forEach((item: any) => {
-  //         if (map[item.ts]) dels.push(item);
-  //         map[item.ts] = item;
-  //       });
-  //       dels.forEach((item: any) => {
-  //         const index = req.data.indexOf(item);
-  //         if (index === -1) return;
-  //         req.data.splice(index, 1);
-  //       });
-  //       // 将数据保存
-  //       // return Promise.resolve({ Url: url, Data: req.data });
+        res.data.data.ts = time.getTime();
+        req.data.push(res.data.data);
+        // 过滤重复的Key数据
+        const map: any = {};
+        const dels: any[] = [];
+        req.data.forEach((item: any) => {
+          if (map[item.ts]) dels.push(item);
+          map[item.ts] = item;
+        });
+        dels.forEach((item: any) => {
+          const index = req.data.indexOf(item);
+          if (index === -1) return;
+          req.data.splice(index, 1);
+        });
+        // 将数据保存
+        // return Promise.resolve({ Url: url, Data: req.data });
 
-  //       // 短时间内部多次保存数据，避免浪费流量,10分钟保存一次
-  //       if (time.getTime() - LastUploadStatisticsFile < 600000) return 'is-end';
-  //       LastUploadStatisticsFile = time.getTime();
+        // 短时间内部多次保存数据，避免浪费流量,10分钟保存一次
+        if (time.getTime() - LastUploadStatisticsFile < 600000) return 'is-end';
+        LastUploadStatisticsFile = time.getTime();
 
-  //       // 将数据改变结构（压缩了一定的存储空间）再保存
-  //       const begin = req.data[0];
-  //       if (!begin) return null;
-  //       return Promise.resolve({
-  //         Url: url,
-  //         Data: {
-  //           DataParse: 'parse1', // 数据压缩方式，这里主要是让客户端知道怎么解析这个数据
-  //           Params: [{ Key: 'BTCUSD_P' }, { Key: 'ts', Add: begin.ts }, { Key: 'ETHUSD_P' }], // 重要信息提取。
-  //           Data: req.data.map((i: any) => [i.BTCUSD_P, i.ts - begin.ts, i.ETHUSD_P]),
-  //         },
-  //       });
-  //     },
-  //   },
-  //   // 【24小时均价、24小时成交量】
-  //   {
-  //     OriginUrl: 'https://api.fmex.com/v2/market/all-tickers',
-  //     OssUrl: '/fmex/v2/market/all-tickers',
-  //     OssOptions: {},
-  //     Step: BakUpStep.H1,
-  //     CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
-  //       if (!res.data) return false;
-  //       if (res.data.status !== 0 && res.data.status !== 'ok') return false;
-  //       if (timeStr !== DateFormat(res.data.data.ts, TimeMap[BakUpStep.H1])) return false;
-  //       return true;
-  //     },
-  //     DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
-  //       const url = `${item.OssUrl}/${DateFormat(time, TimeMap[BakUpStep.D1])}.json`;
-  //       const cache = this.OriginDataCache[url];
-  //       let req: any;
-  //       if (cache && cache.url === url) {
-  //         req = cache.data;
-  //       } else {
-  //         req = await axios.get(AliUrl + url).catch((e) => Promise.resolve(e && e.response));
-  //         if (req && req.status === 404) req.data = [];
-  //         if (!req || (req.status !== 404 && req.status !== 200)) return null;
-  //         this.OriginDataCache[url] = {
-  //           url,
-  //           data: req,
-  //         };
-  //       }
-  //       req.data.push(res.data.data);
-  //       // 过滤重复的Key数据
-  //       const map: any = {};
-  //       const dels: any[] = [];
-  //       req.data.forEach((item: any) => {
-  //         if (map[item.ts]) dels.push(item);
-  //         map[item.ts] = item;
-  //       });
-  //       dels.forEach((item: any) => {
-  //         const index = req.data.indexOf(item);
-  //         if (index === -1) return;
-  //         req.data.splice(index, 1);
-  //       });
-  //       return Promise.resolve({ Url: url, Data: req.data });
-  //     },
-  //   },
+        // 将数据改变结构（压缩了一定的存储空间）再保存
+        const begin = req.data[0];
+        if (!begin) return null;
+        return Promise.resolve({
+          Url: url,
+          Data: {
+            DataParse: 'parse1', // 数据压缩方式，这里主要是让客户端知道怎么解析这个数据
+            Params: [{ Key: 'BTCUSD_P' }, { Key: 'ts', Add: begin.ts }, { Key: 'ETHUSD_P' }], // 重要信息提取。
+            Data: req.data.map((i: any) => [i.BTCUSD_P, i.ts - begin.ts, i.ETHUSD_P]),
+          },
+        });
+      },
+    },
+    // 【24小时均价、24小时成交量】
+    {
+      OriginUrl: 'https://api.fmex.com/v2/market/all-tickers',
+      OssUrl: '/fmex/v2/market/all-tickers',
+      OssOptions: {},
+      Step: BakUpStep.H1,
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        if (!res.data) return false;
+        if (res.data.status !== 0 && res.data.status !== 'ok') return false;
+        if (timeStr !== DateFormat(res.data.data.ts, TimeMap[BakUpStep.H1])) return false;
+        return true;
+      },
+      DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        const url = `${item.OssUrl}/${DateFormat(time, TimeMap[BakUpStep.D1])}.json`;
+        const cache = this.OriginDataCache[url];
+        let req: any;
+        if (cache && cache.url === url) {
+          req = cache.data;
+        } else {
+          req = await axios.get(AliUrl + url).catch((e) => Promise.resolve(e && e.response));
+          if (req && req.status === 404) req.data = [];
+          if (!req || (req.status !== 404 && req.status !== 200)) return null;
+          this.OriginDataCache[url] = {
+            url,
+            data: req,
+          };
+        }
+        req.data.push(res.data.data);
+        // 过滤重复的Key数据
+        const map: any = {};
+        const dels: any[] = [];
+        req.data.forEach((item: any) => {
+          if (map[item.ts]) dels.push(item);
+          map[item.ts] = item;
+        });
+        dels.forEach((item: any) => {
+          const index = req.data.indexOf(item);
+          if (index === -1) return;
+          req.data.splice(index, 1);
+        });
+        return Promise.resolve({ Url: url, Data: req.data });
+      },
+    },
 
-  //   // 【24小时均价、24小时成交量、现货】
-  //   {
-  //     OriginUrl: 'https://api.fcoin.pro/v2/market/all-tickers',
-  //     OssUrl: '/fcoin/v2/market/all-tickers',
-  //     OssOptions: {},
-  //     Step: BakUpStep.H1,
-  //     CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
-  //       if (!res.data) return false;
-  //       res.data.ts = Date.now();
-  //       if (timeStr !== DateFormat(res.data.ts, TimeMap[BakUpStep.H1])) return false;
-  //       return true;
-  //     },
-  //     DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
-  //       const url = `${item.OssUrl}/${DateFormat(time, TimeMap[BakUpStep.D1])}.json`;
-  //       const cache = this.OriginDataCache[url];
-  //       let req: any;
-  //       if (cache && cache.url === url) {
-  //         req = cache.data;
-  //       } else {
-  //         req = await axios.get(AliUrl + url).catch((e) => Promise.resolve(e && e.response));
-  //         if (req && req.status === 404) req.data = [];
-  //         if (!req || (req.status !== 404 && req.status !== 200)) return null;
-  //         this.OriginDataCache[url] = {
-  //           url,
-  //           data: req,
-  //         };
-  //       }
-  //       req.data.push(res.data);
-  //       // 过滤重复的Key数据
-  //       const map: any = {};
-  //       const dels: any[] = [];
-  //       req.data.forEach((item: any) => {
-  //         if (map[item.ts]) dels.push(item);
-  //         map[item.ts] = item;
-  //       });
-  //       dels.forEach((item: any) => {
-  //         const index = req.data.indexOf(item);
-  //         if (index === -1) return;
-  //         req.data.splice(index, 1);
-  //       });
-  //       return Promise.resolve({ Url: url, Data: req.data });
-  //     },
-  //   },
+    // 【24小时均价、24小时成交量、现货】
+    {
+      OriginUrl: 'https://api.fcoin.pro/v2/market/all-tickers',
+      OssUrl: '/fcoin/v2/market/all-tickers',
+      OssOptions: {},
+      Step: BakUpStep.H1,
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        if (!res.data) return false;
+        res.data.ts = Date.now();
+        if (timeStr !== DateFormat(res.data.ts, TimeMap[BakUpStep.H1])) return false;
+        return true;
+      },
+      DataFilter: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        const url = `${item.OssUrl}/${DateFormat(time, TimeMap[BakUpStep.D1])}.json`;
+        const cache = this.OriginDataCache[url];
+        let req: any;
+        if (cache && cache.url === url) {
+          req = cache.data;
+        } else {
+          req = await axios.get(AliUrl + url).catch((e) => Promise.resolve(e && e.response));
+          if (req && req.status === 404) req.data = [];
+          if (!req || (req.status !== 404 && req.status !== 200)) return null;
+          this.OriginDataCache[url] = {
+            url,
+            data: req,
+          };
+        }
+        req.data.push(res.data);
+        // 过滤重复的Key数据
+        const map: any = {};
+        const dels: any[] = [];
+        req.data.forEach((item: any) => {
+          if (map[item.ts]) dels.push(item);
+          map[item.ts] = item;
+        });
+        dels.forEach((item: any) => {
+          const index = req.data.indexOf(item);
+          if (index === -1) return;
+          req.data.splice(index, 1);
+        });
+        return Promise.resolve({ Url: url, Data: req.data });
+      },
+    },
 
-  //   // 平台的零知识证明资产备份
-  //   {
-  //     OriginUrl: `https://fmex.com/api/broker/v3/zkp-assets/platform/currency`,
-  //     OssUrl: `/fmex/api/broker/v3/zkp-assets/platform/currency`,
-  //     Step: BakUpStep.D1,
-  //     OssOptions: {
-  //       headers: {
-  //         'Cache-Control': AppConfig.CacheControl,
-  //       },
-  //     },
-  //     CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
-  //       if (!res.data) return false;
-  //       if (res.data.status !== 0 && res.data.status !== 'ok') return false;
-  //       return true;
-  //     },
-  //     DataFilter: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => Promise.resolve({ Url: `${item.OssUrl}/${timeStr}.json`, Data: res.data.data }),
-  //   },
-  // ];
+    // 平台的零知识证明资产备份
+    {
+      OriginUrl: `https://fmex.com/api/broker/v3/zkp-assets/platform/currency`,
+      OssUrl: `/fmex/api/broker/v3/zkp-assets/platform/currency`,
+      Step: BakUpStep.D1,
+      OssOptions: {
+        headers: {
+          'Cache-Control': AppConfig.CacheControl,
+        },
+      },
+      CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
+        if (!res.data) return false;
+        if (res.data.status !== 0 && res.data.status !== 'ok') return false;
+        return true;
+      },
+      DataFilter: (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => Promise.resolve({ Url: `${item.OssUrl}/${timeStr}.json`, Data: res.data.data }),
+    },
+  ];
 
   PlatformCurrency: string[] = ['btc', 'usdt'];
   PlatformCurrencyTime = ''; // 该信息的获取时间记录
