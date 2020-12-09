@@ -390,11 +390,12 @@ class BakUpHandler {
           CheckData: async (item: BakUpData, res: any, time: Date, timeStr: string, logggg) => {
             if (!res.data) return false;
             if (res.data.status !== 0 && res.data.status !== 'ok') return false;
-            if (timeStr !== DateFormat(res.data.data.snapshot_time, TimeMap[BakUpStep.D1])) return '这次数据无效，停止';
+            // if (timeStr !== DateFormat(res.data.data.snapshot_time, TimeMap[BakUpStep.D1])) return '这次数据无效，停止'; // 隔天场景出现了，他妈的。。。。
             if (res.data.data.confirm_state !== 2) return '这次数据无效，停止';
             return true;
           },
           DataFilter: (item: BakUpData, res: any, time: Date, timeStr: string) => {
+            timeStr = DateFormat(res.data.data.snapshot_time, TimeMap[BakUpStep.D1]);
             this.TotalMoney(logggg, Currency, timeStr, res.data.data);
             return Promise.resolve({ Url: `${item.OssUrl}/${timeStr}.json`, Data: res.data.data });
           },
@@ -476,6 +477,14 @@ class BakUpHandler {
               DataContent.push(...item.content);
             });
             this.OriginCache[cacheKey] = cahceValue;
+
+            // 因为隔天出数据。尴尬。时间可能是前一天
+            const timereq = await axios.get(`https://fmex.com/api/broker/v3/zkp-assets/platform/snapshot/${Currency}`).catch((e) => Promise.resolve(e && e.response));
+            if (timereq && timereq.status === 200 && timereq.data) {
+              if (timereq.data.status === 0 || timereq.data.status === 'ok') {
+                timeStr = DateFormat(res.data.data.snapshot_time, TimeMap[BakUpStep.D1]);
+              }
+            }
             const revert = { Url: `${item.OssUrl}/${timeStr}.json`, Data: DataContent };
 
             // 备份数据，避免到时候有追溯历史数据没有。
