@@ -482,7 +482,7 @@ class BakUpHandler {
             const timereq = await axios.get(`https://fmex.com/api/broker/v3/zkp-assets/platform/snapshot/${Currency}`).catch((e) => Promise.resolve(e && e.response));
             if (timereq && timereq.status === 200 && timereq.data) {
               if (timereq.data.status === 0 || timereq.data.status === 'ok') {
-                timeStr = DateFormat(res.data.data.snapshot_time, TimeMap[BakUpStep.D1]);
+                timeStr = DateFormat(timereq.data.data.snapshot_time, TimeMap[BakUpStep.D1]);
               }
             }
             const revert = { Url: `${item.OssUrl}/${timeStr}.json`, Data: DataContent };
@@ -564,9 +564,21 @@ class BakUpHandler {
     } else {
       EndTime = new Date(PageConfig.BeginTime).getTime();
     }
+
+    const yesterday2 = new Date();
+    yesterday2.setDate(yesterday2.getDate() - 2);
+    const yesterdayTime2 = new Date(DateFormat(yesterday2, 'yyyy-MM-dd')).getTime();
     // 在周期内，不触发更新
     // if (new Date().getDay() % 2 === 1) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
-    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
+    if (EndTime > yesterdayTime2) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的昨日的的数据已经更新进去了，没有更多数据可以更新了
+    // 因为隔天出数据。尴尬。时间可能是前一天
+    const timereq = await axios.get(`https://fmex.com/api/broker/v3/zkp-assets/platform/snapshot/${Currency}`).catch((e) => Promise.resolve(e && e.response));
+    if (!timereq || timereq.status !== 200 || !timereq.data) return console.log(new Date().toISOString(), logggg, OssUrl, '获取快照时间出错');
+    if (timereq.data.status !== 0 && timereq.data.status !== 'ok') return console.log(new Date().toISOString(), logggg, OssUrl, '获取快照数据出错');
+    const yesterday3 = new Date(timereq.data.data.snapshot_time);
+    yesterday3.setDate(yesterday3.getDate() - 1);
+    yesterdayTime = new Date(DateFormat(yesterday3, 'yyyy-MM-dd')).getTime();
+    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的昨日的的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
       const DateStr = DateFormat(time, 'yyyy/MM/dd');
@@ -624,11 +636,20 @@ class BakUpHandler {
     } else {
       EndTime = new Date(PageConfig.BeginTime).getTime();
     }
+    const yesterday2 = new Date();
+    yesterday2.setDate(yesterday2.getDate() - 2);
+    const yesterdayTime2 = new Date(DateFormat(yesterday2, 'yyyy-MM-dd')).getTime();
     // 在周期内，不触发更新
-    // const EndDate = new Date(EndTime);
-    // 每个周一更新
-    // if (new Date().getDay() !== 4) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
-    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
+    // if (new Date().getDay() % 2 === 1) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
+    if (EndTime > yesterdayTime2) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的昨日的的数据已经更新进去了，没有更多数据可以更新了
+    // 因为隔天出数据。尴尬。时间可能是前一天
+    const timereq = await axios.get(`https://fmex.com/api/broker/v3/zkp-assets/platform/snapshot/${Currency}`).catch((e) => Promise.resolve(e && e.response));
+    if (!timereq || timereq.status !== 200 || !timereq.data) return console.log(new Date().toISOString(), logggg, OssUrl, '获取快照时间出错');
+    if (timereq.data.status !== 0 && timereq.data.status !== 'ok') return console.log(new Date().toISOString(), logggg, OssUrl, '获取快照数据出错');
+    const yesterday3 = new Date(timereq.data.data.snapshot_time);
+    yesterday3.setDate(yesterday3.getDate() - 1);
+    yesterdayTime = new Date(DateFormat(yesterday3, 'yyyy-MM-dd')).getTime();
+    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的昨日的的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
       const DateStr = DateFormat(time, 'yyyy/MM/dd');
@@ -692,11 +713,20 @@ class BakUpHandler {
     } else {
       EndTime = new Date(PageConfig.BeginTime).getTime();
     }
+    const yesterday2 = new Date();
+    yesterday2.setDate(yesterday2.getDate() - 2);
+    const yesterdayTime2 = new Date(DateFormat(yesterday2, 'yyyy-MM-dd')).getTime();
     // 在周期内，不触发更新
-    // const EndDate = new Date(EndTime);
-    // 每个周一更新
-    // if (new Date().getDay() !== 4) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是周 4 不统计`);
-    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的数据已经更新进去了，没有更多数据可以更新了
+    // if (new Date().getDay() % 2 === 1) return console.log(new Date().toISOString(),logggg, OssUrl, `${new Date().getDay()}不是统计时间`);
+    if (EndTime > yesterdayTime2) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的昨日的的数据已经更新进去了，没有更多数据可以更新了
+    // 因为隔天出数据。尴尬。时间可能是前一天
+    const timereq = await axios.get(`https://fmex.com/api/broker/v3/zkp-assets/platform/snapshot/${Currency}`).catch((e) => Promise.resolve(e && e.response));
+    if (!timereq || timereq.status !== 200 || !timereq.data) return console.log(new Date().toISOString(), logggg, OssUrl, '获取快照时间出错');
+    if (timereq.data.status !== 0 && timereq.data.status !== 'ok') return console.log(new Date().toISOString(), logggg, OssUrl, '获取快照数据出错');
+    const yesterday3 = new Date(timereq.data.data.snapshot_time);
+    yesterday3.setDate(yesterday3.getDate() - 1);
+    yesterdayTime = new Date(DateFormat(yesterday3, 'yyyy-MM-dd')).getTime();
+    if (EndTime > yesterdayTime) return console.log(new Date().toISOString(), logggg, OssUrl, '已经最新'); // 昨日的昨日的的数据已经更新进去了，没有更多数据可以更新了
 
     const GetPageData = async (time: number, times: number): Promise<any> => {
       const DateStr = DateFormat(time, 'yyyy/MM/dd');
